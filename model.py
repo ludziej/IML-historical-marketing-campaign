@@ -6,6 +6,8 @@ from sklearn.model_selection import cross_validate
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
+from tensorflow.keras.callbacks import EarlyStopping
+from utils import flatten
 
 
 def seach_xgb_parameters(X_train, Y_train, X_valid, Y_valid):
@@ -30,16 +32,16 @@ def seach_xgb_parameters(X_train, Y_train, X_valid, Y_valid):
 
 def local_search_xgb(X_train, Y_train, X_valid, Y_valid):
     init_params = {
-        'subsample': 1.,
+        'subsample': 0.8,
         'colsample_bytree': 1.,
         'learning_rate': 0.1,
         'min_child_weight': 1.,
         'gamma': 0.1,
-        'max_depth': 6,
+        'max_depth': 10,
+        'n_estimators': 100
     }
     limits = {'subsample': (0., 1.), 'colsample_bytree': (0., 1.)}
-    create_model = lambda params: XGBClassifier(n_estimators=1000,
-                                                objective='binary:logistic',  **params)
+    create_model = lambda params: XGBClassifier(objective='binary:logistic',  **params)
     score_function = lambda params: np.average(cross_validate(create_model(params), X_train, Y_train,
                                                               cv=10, n_jobs=5, verbose=0)['test_score'])
     best_params = local_search(init_params, score_function, limits=limits)
@@ -49,24 +51,25 @@ def local_search_xgb(X_train, Y_train, X_valid, Y_valid):
     return best_model
 
 
-def simple_network(X_train, Y_train, X_valid, Y_valid):
-    model = keras.Sequential([
-        keras.layers.Dense(1000, activation='elu'),
-        tf.keras.layers.BatchNormalization(),
-        keras.layers.Dense(1000, activation='elu'),
-        tf.keras.layers.BatchNormalization(),
-        keras.layers.Dense(1000, activation='elu'),
-        tf.keras.layers.BatchNormalization(),
-        keras.layers.Dense(1000, activation='elu'),
-        keras.layers.Dense(1, activation='sigmoid')
-    ])
+def simple_network(X_train, Y_train, X_valid, Y_valid, channels=200, layers=3, dropout=0.3):
+
+    model = keras.Sequential(
+        layers * [
+            keras.layers.Dense(channels, activation='elu'),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Dropout(dropout),
+        ] + [
+            keras.layers.Dense(1, activation='sigmoid')
+        ]
+    )
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
                   metrics=['accuracy', tf.keras.metrics.AUC()])
-    model.fit(X_train, Y_train, validation_split=0.3, verbose=2, epochs=1000)
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=200)
+    model.fit(X_train, Y_train, validation_split=0.3, verbose=2, epochs=2000, callbacks=[es])
     train_acc = model.evaluate(X_train, Y_train, verbose=0)
     print('\nTrain accuracy:', train_acc)
-    test_loss, test_acc = model.evaluate(X_valid, Y_valid, verbose=2)
+    test_acc = model.evaluate(X_valid, Y_valid, verbose=2)
 
     print('\nTest accuracy:', test_acc)
 
