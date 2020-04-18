@@ -65,7 +65,7 @@ def simple_network(X_train, Y_train, X_valid, Y_valid, channels=200, layers=3, d
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
                   metrics=['accuracy', tf.keras.metrics.AUC()])
-    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=200)
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=1000)
     model.fit(X_train, Y_train, validation_split=0.3, verbose=2, epochs=2000, callbacks=[es])
     train_acc = model.evaluate(X_train, Y_train, verbose=0)
     print('\nTrain accuracy:', train_acc)
@@ -80,16 +80,17 @@ def train_xgb_model(X_train, Y_train, X_valid, Y_valid):
                             gamma=0.1)
     xgmodel.fit(X_train, Y_train, verbose=True)
     train_score = xgmodel.score(X_train, Y_train)
-    print("xgboost train score {}".format(train_score))
+    print("XGBoost train score: {}".format(train_score))
     valid_score = xgmodel.score(X_valid, Y_valid)
-    print("xgboost valid score {}".format(valid_score))
+    print("XGBoost valid score: {}".format(valid_score))
     return xgmodel
 
 
-
 def train_logistic(X_train, Y_train, X_valid, Y_valid):
-    logmodel = LogisticRegression(max_iter=1000, solver='lbfgs', C=3)
+    logmodel = LogisticRegression(solver='liblinear', C=3)
     logmodel.fit(X_train, Y_train)
+    train_score = logmodel.score(X_train, Y_train)
+    print("Logistic regression train score: {}".format(train_score))
     log_score = logmodel.score(X_valid, Y_valid)
-    print("logistic valid score {}".format(log_score))
+    print("Logistic regression valid score: {}".format(log_score))
     return logmodel
