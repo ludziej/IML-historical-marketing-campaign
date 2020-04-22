@@ -8,29 +8,40 @@ import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras.callbacks import EarlyStopping
 from utils import flatten
+from pylift import eval
+from sklearn.model_selection import train_test_split
 
 
-def seach_xgb_parameters(X_train, Y_train, X_valid, Y_valid):
-    cv_folds = 3
-    param_comb = 10
-    params = {
-        'min_child_weight': [1, 5, 10],
-        'gamma': [0.5, 1, 1.5, 2, 5],
-        'subsample': [0.6, 0.8, 1.0],
-        'colsample_bytree': [0.6, 0.8, 1.0],
-        'max_depth': [3, 4, 5, 7],
-    }
-    model = XGBClassifier(learning_rate=0.02, n_estimators=100, objective='binary:logistic', nthread=1)
-    folder = StratifiedKFold(n_splits=param_comb, shuffle=True, random_state=42)
-    random_search = RandomizedSearchCV(model, param_distributions=params, n_iter=param_comb, scoring='roc_auc',
-                                       n_jobs=4, cv=folder.split(X_train, Y_train), verbose=3, random_state=1001)
-    random_search.fit(X_train, Y_train)
+def get_score(x, y, y_pred, treat_col, plot=False, policy=0.2):
+    scores = eval.get_scores(x[:, treat_col], y, y_pred, policy, scoring_range=(0, 1), plot_type='all')
+    return scores['overall_lift']
+
+
+def plot_uplift(model, x, y, treat_col):
+    preds = model.predict_proba(x)[:, 1]
+    up = eval.UpliftEval(x[:, treat_col], y, preds)
+    up.plot()
+    score = get_score(x, y, preds, treat_col)
+    #print(score)
+    return score
+
+
+def get_cv_score(create_model, X, Y, treat_col, cv=5):
+    scores = []
+    for i in range(cv):
+        xt, xv, yt, yv = train_test_split(X, Y, test_size=0.2, stratify=Y)
+        model = create_model()
+        model.fit(xt, yt)
+        probas = model.predict_proba(xv)[:, 1]
+        scores.append(get_score(xv, yv, probas, treat_col))
+    return np.average(scores)
+
+
+def local_search_svm(X_train, Y_train, X_valid, Y_valid):
     pass
-    print(random_search.cv_results_)
-    print(random_search.best_estimator_)
 
 
-def local_search_xgb(X_train, Y_train, X_valid, Y_valid):
+def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col):
     init_params = {
         'subsample': 0.8,
         'colsample_bytree': 1.,
@@ -42,20 +53,22 @@ def local_search_xgb(X_train, Y_train, X_valid, Y_valid):
     }
     limits = {'subsample': (0., 1.), 'colsample_bytree': (0., 1.)}
     create_model = lambda params: XGBClassifier(objective='binary:logistic',  **params)
-    score_function = lambda params: np.average(cross_validate(create_model(params), X_train, Y_train,
-                                                              cv=10, n_jobs=5, verbose=0)['test_score'])
+#    score_function = lambda params: np.average(cross_validate(create_model(params), X_train, Y_train,
+#                                                              cv=5, n_jobs=5, verbose=0)['test_score'])
+    score_function = lambda params: get_cv_score(lambda: create_model(params), X_train, Y_train, treatment_col)
     best_params = local_search(init_params, score_function, limits=limits)
     best_model = create_model(best_params)
     best_model.fit(X_train, Y_train,)
-    print("valid score = {}".format(best_model.score(X_valid, Y_valid)))
+    print("train score = {}".format(plot_uplift(best_model, X_train, Y_train, treatment_col)))
+    print("valid score = {}".format(plot_uplift(best_model, X_valid, Y_valid, treatment_col)))
     return best_model
 
 
-def simple_network(X_train, Y_train, X_valid, Y_valid, channels=200, layers=3, dropout=0.3):
+def simple_network(X_train, Y_train, X_valid, Y_valid, channels=100, layers=3, dropout=0.3):
 
     model = keras.Sequential(
         layers * [
-            keras.layers.Dense(channels, activation='elu'),
+            keras.layers.Dense(channels, activation='relu'),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Dropout(dropout),
         ] + [
@@ -64,8 +77,8 @@ def simple_network(X_train, Y_train, X_valid, Y_valid, channels=200, layers=3, d
     )
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
-                  metrics=['accuracy', tf.keras.metrics.AUC()])
-    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=1000)
+                  metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall() ,'accuracy', tf.keras.metrics.AUC()])
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=50)
     model.fit(X_train, Y_train, validation_split=0.3, verbose=2, epochs=2000, callbacks=[es])
     train_acc = model.evaluate(X_train, Y_train, verbose=0)
     print('\nTrain accuracy:', train_acc)
