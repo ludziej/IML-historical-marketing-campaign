@@ -10,6 +10,23 @@ from tensorflow.keras.callbacks import EarlyStopping
 from utils import flatten
 from pylift import eval
 from sklearn.model_selection import train_test_split
+from pylift.eval import UpliftEval
+
+
+def evaluate_score(model, x, y, treatment_col, plot=False):
+
+    x_ones = x.copy()
+    x_zeros = x.copy()
+    x_ones[:, treatment_col] = 1
+    x_zeros[:, treatment_col] = 0
+
+    uplift = (model.predict_proba(x_ones) - model.predict_proba(x_zeros))[:, 1]
+
+    upe = UpliftEval(x[:, treatment_col], y, uplift)
+    if plot:
+        upe.plot(show_theoretical_max=True, show_practical_max=True, show_no_dogs=True, show_random_selection=True)
+
+    return upe.q2_cgains
 
 
 def get_score(x, y, y_pred, treat_col, plot=False, policy=0.2):
