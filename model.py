@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 from pylift.eval import UpliftEval
 
 
-def evaluate_score(model, x, y, treatment_col, plot=False):
+def evaluate_uplift(model, x, y, treatment_col, plot=False):
 
     x_ones = x.copy()
     x_zeros = x.copy()
@@ -29,19 +29,6 @@ def evaluate_score(model, x, y, treatment_col, plot=False):
     return upe.q2_cgains
 
 
-def get_score(x, y, y_pred, treat_col, plot=False, policy=0.2):
-    scores = eval.get_scores(x[:, treat_col], y, y_pred, policy, scoring_range=(0, 1), plot_type='all')
-    return scores['overall_lift']
-
-
-def plot_uplift(model, x, y, treat_col):
-    preds = model.predict_proba(x)[:, 1]
-    up = eval.UpliftEval(x[:, treat_col], y, preds)
-    up.plot()
-    score = get_score(x, y, preds, treat_col)
-    #print(score)
-    return score
-
 
 def get_cv_score(create_model, X, Y, treat_col, cv=5):
     scores = []
@@ -50,7 +37,7 @@ def get_cv_score(create_model, X, Y, treat_col, cv=5):
         model = create_model()
         model.fit(xt, yt)
         probas = model.predict_proba(xv)[:, 1]
-        scores.append(get_score(xv, yv, probas, treat_col))
+        scores.append(evaluate_uplift(model, xv, yv, treat_col))
     return np.average(scores)
 
 
@@ -76,8 +63,8 @@ def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col):
     best_params = local_search(init_params, score_function, limits=limits)
     best_model = create_model(best_params)
     best_model.fit(X_train, Y_train,)
-    print("train score = {}".format(plot_uplift(best_model, X_train, Y_train, treatment_col)))
-    print("valid score = {}".format(plot_uplift(best_model, X_valid, Y_valid, treatment_col)))
+    print("train score = {}".format(evaluate_uplift(best_model, X_train, Y_train, treatment_col)))
+    print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
     return best_model
 
 
