@@ -11,6 +11,7 @@ from utils import flatten
 from pylift import eval
 from sklearn.model_selection import train_test_split
 from pylift.eval import UpliftEval
+from sklearn.svm import SVC
 
 
 def evaluate_uplift(model, x, y, treatment_col, plot=False):
@@ -29,23 +30,33 @@ def evaluate_uplift(model, x, y, treatment_col, plot=False):
     return upe.q2_cgains
 
 
-
-def get_cv_score(create_model, X, Y, treat_col, cv=5):
+def get_cv_score(create_model, X, Y, treat_col, cv=6):
     scores = []
     for i in range(cv):
-        xt, xv, yt, yv = train_test_split(X, Y, test_size=0.2, stratify=Y)
+        xt, xv, yt, yv = train_test_split(X, Y, test_size=0.3, stratify=Y)
         model = create_model()
         model.fit(xt, yt)
-        probas = model.predict_proba(xv)[:, 1]
         scores.append(evaluate_uplift(model, xv, yv, treat_col))
     return np.average(scores)
 
 
-def local_search_svm(X_train, Y_train, X_valid, Y_valid):
-    pass
+def local_search_svm(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False):
+    init_params = {
+        'C': 1.,
+        'gamma': 0.1
+    }
+    limits = {}
+    create_model = lambda params: SVC(kernel='rbf', probability=True, **params)
+    score_function = lambda params: get_cv_score(lambda: create_model(params), X_train, Y_train, treatment_col, cv=6)
+    best_model = create_model(init_params if just_get_model else
+                              local_search(init_params, score_function, limits=limits))
+    best_model.fit(X_train, Y_train)
+    print("train score = {}".format(evaluate_uplift(best_model, X_train, Y_train, treatment_col)))
+    print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
+    return best_model
 
 
-def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col):
+def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False):
     init_params = {
         'subsample': 0.8,
         'colsample_bytree': 1.,
@@ -57,12 +68,10 @@ def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col):
     }
     limits = {'subsample': (0., 1.), 'colsample_bytree': (0., 1.)}
     create_model = lambda params: XGBClassifier(objective='binary:logistic',  **params)
-#    score_function = lambda params: np.average(cross_validate(create_model(params), X_train, Y_train,
-#                                                              cv=5, n_jobs=5, verbose=0)['test_score'])
-    score_function = lambda params: get_cv_score(lambda: create_model(params), X_train, Y_train, treatment_col)
-    best_params = local_search(init_params, score_function, limits=limits)
-    best_model = create_model(best_params)
-    best_model.fit(X_train, Y_train,)
+    score_function = lambda params: get_cv_score(lambda: create_model(params), X_train, Y_train, treatment_col, cv=12)
+    best_model = create_model(init_params if just_get_model else
+                              local_search(init_params, score_function, limits=limits))
+    best_model.fit(X_train, Y_train)
     print("train score = {}".format(evaluate_uplift(best_model, X_train, Y_train, treatment_col)))
     print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
     return best_model
