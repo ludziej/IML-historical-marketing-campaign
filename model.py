@@ -23,15 +23,18 @@ def predict_treatment(model, treatment_col, c):
     return pred
 
 
+def check_acc_diff(model, name, X_train, Y_train, X_valid, Y_valid):
+    print("{} train acc: {}".format(name, model.score(X_train, Y_train)))
+    print("{} valid acc: {}".format(name, model.score(X_valid, Y_valid)))
+
+
+def check_uplift_diff(model, name, X_train, Y_train, X_valid, Y_valid, treatment_col):
+    print("{} train uplift score = {}".format(name, evaluate_uplift(model, X_train, Y_train, treatment_col, plot=True)))
+    print("{} valid uplift score = {}".format(name, evaluate_uplift(model, X_valid, Y_valid, treatment_col, plot=True)))
+
+
 def evaluate_uplift(model, x, y, treatment_col, plot=False):
-
-    x_ones = x.copy()
-    x_zeros = x.copy()
-    x_ones[:, treatment_col] = 1
-    x_zeros[:, treatment_col] = 0
-
-    uplift = (model.predict_proba(x_ones) - model.predict_proba(x_zeros))[:, 1]
-
+    uplift = calc_uplift(model, x, treatment_col)
     upe = UpliftEval(x[:, treatment_col], y, uplift)
     if plot:
         upe.plot(show_theoretical_max=True, show_practical_max=True, show_no_dogs=True, show_random_selection=True)
@@ -66,7 +69,7 @@ def local_search_svm(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get
     return best_model
 
 
-def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False):
+def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False, print_score=False):
     init_params = {'subsample': 0.03375205270351832, 'colsample_bytree': 0.017281050984201383,
                    'learning_rate': 0.007474227529937205, 'min_child_weight': 0.016192759517420326,
                    'gamma': 0.0005306043438668296, 'max_depth': 4, 'n_estimators': 12
@@ -77,51 +80,58 @@ def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get
     best_model = create_model(init_params if just_get_model else
                               local_search(init_params, score_function, limits=limits))
     best_model.fit(X_train, Y_train)
-    print("train score = {}".format(evaluate_uplift(best_model, X_train, Y_train, treatment_col)))
-    print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
+    if print_score:
+        print("train score = {}".format(evaluate_uplift(best_model, X_train, Y_train, treatment_col)))
+        print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
     return best_model
 
 
-def simple_network(X_train, Y_train, X_valid, Y_valid, channels=100, layers=3, dropout=0.3):
+def simple_network(X_train, Y_train, X_valid, Y_valid, channels=30, layers=3, dropout=0.3, epochs=5, verbosity=0):
+    def create_model():
+        model = keras.Sequential(
+            layers * [
+                keras.layers.Dense(channels, activation='relu'),
+                tf.keras.layers.BatchNormalization(),
+                tf.keras.layers.Dropout(dropout),
+            ] + [
+                keras.layers.Dense(1, activation='sigmoid')
+            ]
+        )
+        model.compile(optimizer='adam',
+                      loss='binary_crossentropy',
+                      metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall(),
+                               'accuracy', tf.keras.metrics.AUC()])
+        return model
+    model = keras.wrappers.scikit_learn.KerasClassifier(build_fn=create_model, verbose=verbosity)
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=verbosity, patience=50)
+    model.fit(X_train, Y_train, validation_split=0.3, verbose=verbosity, epochs=epochs, callbacks=[es])
+    if verbosity > 0:
+        train_acc = model.score(X_train, Y_train, verbose=0)
+        print('\nTrain accuracy:', train_acc)
+        test_acc = model.score(X_valid, Y_valid, verbose=2)
+        print('\nTest accuracy:', test_acc)
+    return model
 
-    model = keras.Sequential(
-        layers * [
-            keras.layers.Dense(channels, activation='relu'),
-            tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dropout(dropout),
-        ] + [
-            keras.layers.Dense(1, activation='sigmoid')
-        ]
-    )
-    model.compile(optimizer='adam',
-                  loss='binary_crossentropy',
-                  metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall() ,'accuracy', tf.keras.metrics.AUC()])
-    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=50)
-    model.fit(X_train, Y_train, validation_split=0.3, verbose=2, epochs=2000, callbacks=[es])
-    train_acc = model.evaluate(X_train, Y_train, verbose=0)
-    print('\nTrain accuracy:', train_acc)
-    test_acc = model.evaluate(X_valid, Y_valid, verbose=2)
 
-    print('\nTest accuracy:', test_acc)
-
-
-def train_xgb_model(X_train, Y_train, X_valid, Y_valid):
+def train_xgb_model(X_train, Y_train, X_valid, Y_valid, print_score=False):
     xgmodel = XGBClassifier(max_depth=13,
                             objective='binary:logistic',
                             gamma=0.1)
     xgmodel.fit(X_train, Y_train, verbose=True)
-    train_score = xgmodel.score(X_train, Y_train)
-    print("XGBoost train score: {}".format(train_score))
-    valid_score = xgmodel.score(X_valid, Y_valid)
-    print("XGBoost valid score: {}".format(valid_score))
+    if print_score:
+        train_score = xgmodel.score(X_train, Y_train)
+        print("XGBoost train score: {}".format(train_score))
+        valid_score = xgmodel.score(X_valid, Y_valid)
+        print("XGBoost valid score: {}".format(valid_score))
     return xgmodel
 
 
-def train_logistic(X_train, Y_train, X_valid, Y_valid):
+def train_logistic(X_train, Y_train, X_valid, Y_valid, print_score=False):
     logmodel = LogisticRegression(solver='liblinear', C=3)
     logmodel.fit(X_train, Y_train)
-    train_score = logmodel.score(X_train, Y_train)
-    print("Logistic regression train score: {}".format(train_score))
-    log_score = logmodel.score(X_valid, Y_valid)
-    print("Logistic regression valid score: {}".format(log_score))
+    if print_score:
+        train_score = logmodel.score(X_train, Y_train)
+        print("Logistic regression train score: {}".format(train_score))
+        log_score = logmodel.score(X_valid, Y_valid)
+        print("Logistic regression valid score: {}".format(log_score))
     return logmodel

@@ -1,5 +1,5 @@
 from model import train_xgb_model, train_logistic
-from data import train, X_train, Y_train, X_valid, Y_valid, column_names
+from data import train, X_train, Y_train, X_valid, Y_valid, column_names, treatment_col
 import numpy as np
 from ceteris_paribus.explainer import explain
 from ceteris_paribus.profiles import individual_variable_profile
@@ -7,13 +7,13 @@ from ceteris_paribus.plots.plots import plot
 from IPython.core.display import display, HTML
 from IPython.display import IFrame
 
-print("Models: ")
+#print("Models: ")
 count = 0
 
 xgmodel = train_xgb_model(X_train, Y_train, X_valid, Y_valid)
-print("\n")
+#print("\n")
 logmodel = train_logistic(X_train, Y_train, X_valid, Y_valid)
-print("\n")
+#print("\n")
 
 print("Dataset bias: {}% of positive answers \n\n\n".format(np.average(Y_train)*100))
 
@@ -48,15 +48,17 @@ second_part = ["MRTG_1_MONTHLY_PAYMENT", "N_DISPUTED_ACTS", "TOT_HI_CRDT_CRDT_LM
 third_part = ["PREM_BANKCARD_CRED_LMT", "AVG_BAL_ALL_FNC_REV_ACTS", "M_SNCOLDST_OIL_NTN_TRD_OPN"]
 
 
+train.head()
 
-explain_wrap(11, first_part)
-explain_wrap(11, second_part)
-explain_wrap(11, third_part)
 
-explain_wrap(2, first_part)
-explain_wrap(2, second_part)
-explain_wrap(2, third_part)
+#explain_wrap(11, first_part)
+#explain_wrap(11, second_part)
+#explain_wrap(11, third_part)
 
-explain_wrap(false_negatives[0][0], first_part)
-explain_wrap(false_negatives[0][0], second_part)
-explain_wrap(false_negatives[0][0], third_part)
+#explain_wrap(2, first_part)
+#explain_wrap(2, second_part)
+#explain_wrap(2, third_part)
+
+#explain_wrap(false_negatives[0][0], first_part)
+#explain_wrap(false_negatives[0][0], second_part)
+#explain_wrap(false_negatives[0][0], third_part)

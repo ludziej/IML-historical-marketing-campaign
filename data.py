@@ -14,11 +14,11 @@ data_ohe.segment = data_ohe.segment.map({'Womens E-Mail': 1, 'Mens E-Mail': 1, '
 data = data_ohe.copy()
 train = data_ohe.drop('visit', axis=1)
 column_names = list(train.columns)
-train = train.to_numpy().astype(float)
+train_np = train.to_numpy().astype(float)
 treatment_col = column_names.index('segment')
 y = data_ohe.visit.to_numpy().astype(float)
 
-X_train, X_valid, Y_train, Y_valid = train_test_split(train, y, test_size=0.2, stratify=y, random_state=42)
+X_train, X_valid, Y_train, Y_valid = train_test_split(train_np, y, test_size=0.2, stratify=y, random_state=42)
 
 #train = pyreadr.read_r('hmc_train.Rda')['train']  # pandas df
 #valid = pyreadr.read_r('hmc_valid.Rda')['valid']#
