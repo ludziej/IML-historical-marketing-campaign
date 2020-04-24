@@ -2,7 +2,7 @@ import shap
 from model import predict_treatment
 
 
-def shapley_tree(model_predict, dataset, obs, column_names, plot_draw=True):
+def shapley_tree(model_predict, dataset, obs, column_names, plot_draw=False):
     explainer = shap.KernelExplainer(model_predict, shap.sample(dataset, 100))
     shap_values = explainer.shap_values(obs)
     if plot_draw:
