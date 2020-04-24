@@ -1,17 +1,26 @@
 from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, StratifiedKFold
 from ml_utils import local_search
-from sklearn.model_selection import cross_validate
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras.callbacks import EarlyStopping
-from utils import flatten
-from pylift import eval
 from sklearn.model_selection import train_test_split
 from pylift.eval import UpliftEval
 from sklearn.svm import SVC
+import matplotlib.pyplot as plt
+
+
+def calc_uplift(model, x, treatment_col):
+    return predict_treatment(model, treatment_col, 1)(x) - predict_treatment(model, treatment_col, 0)(x)
+
+
+def predict_treatment(model, treatment_col, c):
+    def pred(x):
+        x = x.copy()
+        x[:, treatment_col] = c
+        return model.predict_proba(x)[:, 1]
+    return pred
 
 
 def evaluate_uplift(model, x, y, treatment_col, plot=False):
@@ -26,6 +35,7 @@ def evaluate_uplift(model, x, y, treatment_col, plot=False):
     upe = UpliftEval(x[:, treatment_col], y, uplift)
     if plot:
         upe.plot(show_theoretical_max=True, show_practical_max=True, show_no_dogs=True, show_random_selection=True)
+        plt.plot()
 
     return upe.q2_cgains
 
@@ -40,7 +50,7 @@ def get_cv_score(create_model, X, Y, treat_col, cv=6):
     return np.average(scores)
 
 
-def local_search_svm(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False):
+def local_search_svm(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False, plot=False):
     init_params = {
         'C': 10.,
         'gamma': 0.1
@@ -51,21 +61,16 @@ def local_search_svm(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get
     best_model = create_model(init_params if just_get_model else
                               local_search(init_params, score_function, limits=limits))
     best_model.fit(X_train, Y_train)
-    print("train score = {}".format(evaluate_uplift(best_model, X_train, Y_train, treatment_col)))
-    print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
+    print("train score = {}".format(evaluate_uplift(best_model, X_train, Y_train, treatment_col, plot=plot)))
+    print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col, plot=plot)))
     return best_model
 
 
 def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False):
-    init_params = {
-        'subsample': 0.8,
-        'colsample_bytree': 1.,
-        'learning_rate': 0.1,
-        'min_child_weight': 1.,
-        'gamma': 0.1,
-        'max_depth': 10,
-        'n_estimators': 100
-    }
+    init_params = {'subsample': 0.03375205270351832, 'colsample_bytree': 0.017281050984201383,
+                   'learning_rate': 0.007474227529937205, 'min_child_weight': 0.016192759517420326,
+                   'gamma': 0.0005306043438668296, 'max_depth': 4, 'n_estimators': 12
+                   }
     limits = {'subsample': (0., 1.), 'colsample_bytree': (0., 1.)}
     create_model = lambda params: XGBClassifier(objective='binary:logistic',  **params)
     score_function = lambda params: get_cv_score(lambda: create_model(params), X_train, Y_train, treatment_col, cv=12)
