@@ -91,8 +91,8 @@ It is largely imbalanced - there is only about 15% of positive cases in column V
 In such situation we decided to use column Visit as a label.
 As the number of column is small we decided to use one-hot encoding for transforming categorical variables instead of target encoding. 
 
-## Model 
-The is not many packages dedicated to uplift models in python. We investigated the two: pylift [@pylift] and pyuplift. The latter enables usage of 4 types of models - one of those is Two Model approach. In pylift package there is the TransformedOutcome class that generate predictions. However, the model itself is not well described and uses XGBRegressor unserneath that is not intuitive. Fortunately the package offer also the class UpliftEval that allow uplift metric visualization. 
+## Model [wymaga dopracowania]
+There is not many packages dedicated to uplift modeling in python. We investigated the two: pylift [@pylift] and pyuplift. The latter enables usage of 4 types of models - one of those is Two Model approach. In pylift package there is the TransformedOutcome class that generate predictions. However, the model itself is not well described and uses XGBRegressor unserneath that is not intuitive. Fortunately the package offer also the class UpliftEval that allow uplift metric visualization. 
 In the scene, we decided to create our own classifier (as in the One-Model approach) and use UpliftEval class from pylift model for metric evaluation.
 As the classifier we used fine-tuned XGBoost. In the figure below we show the cumulative gain chart for train and test sets. 
 
@@ -106,7 +106,7 @@ It is worth emphesising that our model didn't experience overfitting as its qual
 [napisać gdzieś że miara accuracy jest beznadziejna i poprzeć to dowodem liczbowym]
 
 
-## Explanations
+## Explanations [wymaga dopracowania]
 The model is already created and the metric show that it brings additional value.Here comes the question whether the model is reliable, does it make the decision based on the features that are important form expert knowledge perspective. Such judgement can be done based on results of XAI tools.
 We decided to investigate model interpretability from the perspective of the 4 customer groups @\ref(fig:4groups). Therefore we chose one representative customer from each group and analyse the model on instance-level. 
 
