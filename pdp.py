@@ -10,7 +10,7 @@ Original file is located at
 from profiles import train, X_train, Y_train, X_valid, Y_valid, column_names, treatment_col
 from model import train_xgb_model, train_logistic, evaluate_uplift, simple_network, check_acc_diff, check_uplift_diff, local_search_xgb, calc_uplift, predict_treatment
 import pandas as pd
-from pycebox.ice import ice, ice_plot
+#from pycebox.ice import ice, ice_plot
 import matplotlib.pyplot as plt
 import dalex
 import xgboost as xg
