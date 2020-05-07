@@ -32,15 +32,12 @@ def shapley_variable_dependence_plot(model, dataset, column_names, treatment_col
     for pair in pairs:
         shap.dependence_plot(pair, values, dataset[sample])
         
-def feature_importance_sleeping_dogs(model,X,column_names,treatment_col):
-    sleeping_dogs = X[calc_uplift(model, X, treatment_col)<0]
-    return shapley_importance_plot(r_xgb_model, sleeping_dogs, column_names, treatment_col)
-
-def feature_importance_sure_things_and_lost_causes(model,X,column_names,treatment_col):
+def feature_importance_groups(model,X,group,column_names,treatment_col):
     uplift = calc_uplift(model, X, treatment_col)
-    sure_things_and_lost_causes = X[(uplift >= 0) & (uplift <= 0.01)]
-    return shapley_importance_plot(r_xgb_model, sure_things_and_lost_causes, column_names, treatment_col)
-
-def feature_importance_persuadables(model,X,column_names,treatment_col):
-    persuadables = X[calc_uplift(model, X, treatment_col)>0.01]
-    return shapley_importance_plot(r_xgb_model, persuadables, column_names, treatment_col)
+    if group == "sleeping_dogs":
+        group = X[uplift<0]
+    elif group == "sure_things_and_lost_causes":
+        group = X[(uplift >= 0) & (uplift <= 0.01)]
+    elif group == "persuadables":
+        group = X[uplift>0.01]
+    return shapley_importance_plot(r_xgb_model, group, column_names, treatment_col)
