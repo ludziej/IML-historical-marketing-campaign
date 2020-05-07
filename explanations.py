@@ -1,6 +1,7 @@
 import shap
 from model import predict_treatment
 import numpy as np
+from model import calc_uplift
 
 
 def shapley_tree(model_predict, obs, dataset, column_names, plot_draw=False):
@@ -30,3 +31,16 @@ def shapley_variable_dependence_plot(model, dataset, column_names, treatment_col
     values, expected = shapley_diff(model, dataset[sample], dataset, column_names, treatment_col, plot_draw=False)
     for pair in pairs:
         shap.dependence_plot(pair, values, dataset[sample])
+        
+def feature_importance_sleeping_dogs(model,X,column_names,treatment_col):
+    sleeping_dogs = X[calc_uplift(model, X, treatment_col)<0]
+    return shapley_importance_plot(r_xgb_model, sleeping_dogs, column_names, treatment_col)
+
+def feature_importance_sure_things_and_lost_causes(model,X,column_names,treatment_col):
+    uplift = calc_uplift(model, X, treatment_col)
+    sure_things_and_lost_causes = X[(uplift >= 0) & (uplift <= 0.01)]
+    return shapley_importance_plot(r_xgb_model, sure_things_and_lost_causes, column_names, treatment_col)
+
+def feature_importance_persuadables(model,X,column_names,treatment_col):
+    persuadables = X[calc_uplift(model, X, treatment_col)>0.01]
+    return shapley_importance_plot(r_xgb_model, persuadables, column_names, treatment_col)
