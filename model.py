@@ -2,9 +2,9 @@ from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression
 from ml_utils import local_search
 import numpy as np
-import tensorflow as tf
-import tensorflow.keras as keras
-from tensorflow.keras.callbacks import EarlyStopping
+#import tensorflow as tf
+#import tensorflow.keras as keras
+#from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
 from pylift.eval import UpliftEval
 from sklearn.svm import SVC
@@ -69,11 +69,12 @@ def local_search_svm(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get
     return best_model
 
 
-def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False, print_score=False):
-    init_params = {'subsample': 0.03375205270351832, 'colsample_bytree': 0.017281050984201383,
-                   'learning_rate': 0.007474227529937205, 'min_child_weight': 0.016192759517420326,
-                   'gamma': 0.0005306043438668296, 'max_depth': 4, 'n_estimators': 12
-                   }
+def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=False, print_score=False, init_params=None):
+    init_params = init_params or {
+                   'subsample': 0.775205270351832, 'colsample_bytree': 0.25,
+                   'learning_rate':  0.7474227529937205, 'min_child_weight':  0.3192759517420326,
+                   'gamma': 0.05306043438668296, 'max_depth': 5, 'n_estimators': 12
+}
     limits = {'subsample': (0., 1.), 'colsample_bytree': (0., 1.)}
     create_model = lambda params: XGBClassifier(objective='binary:logistic',  **params)
     score_function = lambda params: get_cv_score(lambda: create_model(params), X_train, Y_train, treatment_col, cv=12)
@@ -85,32 +86,32 @@ def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get
         print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
     return best_model
 
-
-def simple_network(X_train, Y_train, X_valid, Y_valid, channels=30, layers=3, dropout=0.3, epochs=5, verbosity=0):
-    def create_model():
-        model = keras.Sequential(
-            layers * [
-                keras.layers.Dense(channels, activation='relu'),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dropout(dropout),
-            ] + [
-                keras.layers.Dense(1, activation='sigmoid')
-            ]
-        )
-        model.compile(optimizer='adam',
-                      loss='binary_crossentropy',
-                      metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall(),
-                               'accuracy', tf.keras.metrics.AUC()])
-        return model
-    model = keras.wrappers.scikit_learn.KerasClassifier(build_fn=create_model, verbose=verbosity)
-    es = EarlyStopping(monitor='val_loss', mode='min', verbose=verbosity, patience=50)
-    model.fit(X_train, Y_train, validation_split=0.3, verbose=verbosity, epochs=epochs, callbacks=[es])
-    if verbosity > 0:
-        train_acc = model.score(X_train, Y_train, verbose=0)
-        print('\nTrain accuracy:', train_acc)
-        test_acc = model.score(X_valid, Y_valid, verbose=2)
-        print('\nTest accuracy:', test_acc)
-    return model
+#
+#def simple_network(X_train, Y_train, X_valid, Y_valid, channels=30, layers=3, dropout=0.3, epochs=5, verbosity=0):
+#    def create_model():
+#        model = keras.Sequential(
+#            layers * [
+#                keras.layers.Dense(channels, activation='relu'),
+#                tf.keras.layers.BatchNormalization(),
+#                tf.keras.layers.Dropout(dropout),
+#            ] + [
+#                keras.layers.Dense(1, activation='sigmoid')
+#            ]
+#        )
+#        model.compile(optimizer='adam',
+#                      loss='binary_crossentropy',
+#                      metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall(),
+#                               'accuracy', tf.keras.metrics.AUC()])
+#        return model
+#    model = keras.wrappers.scikit_learn.KerasClassifier(build_fn=create_model, verbose=verbosity)
+#    es = EarlyStopping(monitor='val_loss', mode='min', verbose=verbosity, patience=50)
+#    model.fit(X_train, Y_train, validation_split=0.3, verbose=verbosity, epochs=epochs, callbacks=[es])
+#    if verbosity > 0:
+#        train_acc = model.score(X_train, Y_train, verbose=0)
+#        print('\nTrain accuracy:', train_acc)
+#        test_acc = model.score(X_valid, Y_valid, verbose=2)
+#        print('\nTest accuracy:', test_acc)
+#    return model
 
 
 def train_xgb_model(X_train, Y_train, X_valid, Y_valid, print_score=False):
