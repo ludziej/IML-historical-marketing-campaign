@@ -41,3 +41,13 @@ def feature_importance_groups(model,X,group,column_names,treatment_col):
     elif group == "persuadables":
         group = X[uplift>0.01]
     return shapley_importance_plot(r_xgb_model, group, column_names, treatment_col)
+
+def pdp_plot_uplift(model,X_train,Y_train):
+  exp = dalex.Explainer(model, X_train,Y_train, predict_function = calc_uplift_filled)
+  partial=exp.model_profile(type='partial')
+  partial.plot()
+
+def ale_plot_uplift(model,X_train,Y_train):
+  exp = dalex.Explainer(r_xgb_model, X_train,Y_train, predict_function = calc_uplift_filled)
+  partial=exp.model_profile(type='accumulated')
+  partial.plot()
