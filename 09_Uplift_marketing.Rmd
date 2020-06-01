@@ -99,7 +99,7 @@ The dataset is largely imbalanced - there are only about 15% of positive cases i
 In such a situation we decided to use column *Visit* as a target for the classifier.
 As the number of columns is small we decided to use one-hot encoding for transforming categorical variables instead of target encoding. 
 
-## Model
+## Model exploration and metrics
 There are not many packages dedicated to uplift modeling in python. We investigated the two: pylift [@pylift] and pyuplift [@pyuplift]. The latter enables usage of 4 types of models - one of those is the Two Model approach. In the pylift package there is the TransformedOutcome class that generates predictions. However, the model itself is not well described and uses XGBRegressor underneath that is not intuitive. Fortunately the package offer also the class UpliftEval that allows uplift metrics visualization. 
 In the scene, we decided to create own classifier (as in the One Model approach) and use UpliftEval class from the pylift model for metric evaluation.
 As the classifier we used fine-tuned XGBoost with the score function as the area under the cumulative gain chart (described below). In the figure \@ref(fig:upliftRES) we show the cumulative gain chart for train and test sets. 
@@ -120,9 +120,30 @@ $N_t$ is the total number of observations in treatment group (analogically $N_c$
 The plot can be interpreted as follows:  
 First the customers are sorted in descending order based on predicted uplift. Later some friction of data is taken for the analysis (e.g. 10% of the people with the highest score). This cutoff is represented as $\phi$ in the formula. Next the uplift gain is verified for the subset. At the beginning of the curve the gain is the biggest as it refers to the *"persuadables"* group. Later the curve stabilizes as it depicts the groups: *"lost causes"* and *"sure things"*. In the end the curve decrease as there are *"sleeping dogs"* with negative uplift.
 
-It can be seen that our model is better than random choice but much worse than the practical/theoretical maximum possible. It is also worse than the case without *"sleeping dogs"*.
-It is worth noticing that our model didn't experience overfitting as its quality on the train and test sets is similar.
+### Model
 
+It can be seen that our model is better than random choice but much worse than the practical/theoretical maximum possible. It is also worse than the case without *"sleeping dogs"*. 
+However we have to remember what this uplift score indicates. Maximum uplift would mean, that we can always persuade anyone to buy, which is obviously an unrealistic scenario, since our "treatment" is only a single advertisement. Comparing to uplift modelling in different domains, i. e. medical usages, our treatment has generally smaller impact on case, therefore dataset itself is more noisy and cumulative gains are smaller. Worth noting also is, that due to small number of features, there are multiple cases in the dataset where two observations with same features have different answears. This kind of noise in data also tremendously impacts the score and requires caution when training models.
+
+Taking into consideration previous observations, model was found using so called local search procedure, what means that we choose some meta-parameters of the model and iteratively, for every meta-parameter approximate derivative (of function from set of metaparemeters to score of trained model) by sampling the local neighbourhood of current value and follow the ascending gradient. Local search stops naturally, when in previus iteration, we did not change any parameter, hence we hit one of the local minima. To be clear, if meta-paremeter is discrete, by approximating local neightbourhood we mean just checking close values. For our score function, we've chosen cross validation on cumulative gains. This kind of procedure should seek for highly robust models.  Therefore, it is worth noticing that our model didn't experience any overfitting as its quality on the train and test sets is similar. The resulting major parameters were: maximum depth 5, high learning rate 0.7 and only 12 estimators.
+
+### Comparing metrics
+
+Same procedure using accuracy as score function failed to converge with any decent quality, because this metric is much less informative in our case, considering especially bias of the dataset. Since only a small number of clients actually purchased, its really hard to correctly predict a positive case and its hard to create a (not overtiffed) model that anytime outputs a probability of purchase bigger then 50%. Therefore within the local search with accuracy function, starting local neighbourhood was always flat. This might be because in the dataset there is more noise, then positive cases. But fortunately, only important factor, from our prespective is *probability* of the purchase, since uplift is increase of purchase probability after treatment, and it directly transfers into money gain.
+To visualize it in a straightforward manner , we present table comparing our current robust XGBoost model with overfitted one (deep trees, 100 estimators).
+```{r overfitTable, echo=FALSE} 
+table <- data.frame(
+  "Model" = c("Overfitted XGBoost","Robust XGBoost"),
+  "Train accuracy" = c(0.87554, 0.85322),
+  "Valid accuracy" = c(0.84734, 0.85320),
+  "Train cummulative gain" = c(0.71904, 0.0398),
+  "Valid cummulative gain" = c(0.02037, 0.0425),
+  check.names = FALSE)
+knitr::kable(table, caption='Comparing metrics' )
+```
+
+
+As we see above for the overfitted model, while the overfit gap in accuracy scores is only around 2%, cummulative gains drop by 50%. 
 
 ## Explanations
 The Cumulative Gain chart shows that the proposed model brings additional value. Here comes the question of whether the model is reliable? Does it make the decision based on the features that are important from an expert knowledge perspective? Such judgment can be done based on the results of XAI tools.
@@ -176,18 +197,18 @@ The specificity of uplift models in terms of the possibility to analyse them thr
 Below we present how Shapley values differ depending on the fact that the customer was or wasn't addressed by treatment. On *x* axis there are Shapley values in case T=0 and on y axis in case T=1.In each chart there is Shapley value referring to one variable. In situation when the Shapley values are the same irrespective of the presence or absence of treatment they would lie on identity line. Moreover, there is color used as third dimension indicating the group that the particular customer belongs to. The division is made based on predicted uplift. As almost all customers were categorized to *"persuadables"*, we decided to show on the plot only 1000 records from this group to maintain chart readability.
 
 ```{r recencySHAP, echo=FALSE, fig.cap='Shapley values on variable recency in case T=0 and T=1', out.width = '50%', fig.align='center'}
-knitr::include_graphics("images/09_shap_recency.PNG")
+knitr::include_graphics("images/09_shap_recency.png")
 ```
 
 It can be seen that *"persuadables"* are slightly above and below identity line as we have set 	\( \epsilon \) value as +-0.01.
 ```{r historySHAP, echo=FALSE, fig.cap='Shapley values on variable history in case T=0 and T=1', out.width = '50%', fig.align='center'}
-knitr::include_graphics("images/09_shap_history.PNG")
+knitr::include_graphics("images/09_shap_history.png")
 ```
 In Figure \@ref(fig:historySHAP) it can be seen that three customer groups are distinctive groups that could have been obtained trough clustering methods.
 
 Apart from continuous variable we also investigated binary variable. Most of them looked similar as Figure \@ref(fig:historySHAP) but there was one exception - variable *womens*. 
 ```{r womensSHAP, echo=FALSE, fig.cap='Shapley values on variable womens in case T=0 and T=1', out.width = '50%', fig.align='center'}
-knitr::include_graphics("images/09_shap_womens.PNG")
+knitr::include_graphics("images/09_shap_womens.png")
 ```
 It can be seen that the customer groups are overlapping. They constitue very homogenous groups.
 
@@ -205,17 +226,17 @@ It highlights the correlations in colors. The red color means a feature is posit
 
 
 ```{r sleepingDOGS, echo=FALSE, fig.cap='Variable importance - "sleeping dogs"', out.width = '60%', fig.align='center'}
-knitr::include_graphics("images/09_sleeping_dogs_feature_importance_correlations.PNG")
+knitr::include_graphics("images/09_sleeping_dogs_feature_importance_correlations.png")
 ```
 
 
 ```{r noIMPACT, echo=FALSE, fig.cap='Variable importance - "no impact"', out.width = '60%', fig.align='center'}
-knitr::include_graphics("images/09_no_impact_feature_importance_correlations.PNG")
+knitr::include_graphics("images/09_no_impact_feature_importance_correlations.png")
 ```
 
 
 ```{r persuadables, echo=FALSE, fig.cap='Variable importance - "persuadables"', out.width = '60%', fig.align='center'}
-knitr::include_graphics("images/09_persuadables_feature_importance_correlations.PNG")
+knitr::include_graphics("images/09_persuadables_feature_importance_correlations.png")
 ```
 
 
@@ -225,31 +246,31 @@ You may ask how to show a dependence plot. You have two options. The most common
 We generated the Partial Dependence Plot for all features and the SHAP dependence plot based on 1k observations only for *history* and *recency* features. 
 
 ```{r pdp_history, echo=FALSE, fig.cap='(left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
-knitr::include_graphics("images/09_history_PDP_ALE.PNG")
-knitr::include_graphics("images/09_history_shap_dependence_plot.PNG")
+knitr::include_graphics("images/09_history_PDP_ALE.png")
+knitr::include_graphics("images/09_history_shap_dependence_plot.png")
 ```
 
 For our model The SHAP Dependence Plot reflects the shape of the Partial Dependence Plot, while also highlighting the impact of *history* on uplift prediction is extremely different for people with the same value of *history*. Many individuals have a recorded *history* of 250 dollars in our dataset, but the impact of that measurement on their uplift varies.
 
 ```{r pdp_recency, echo=FALSE, fig.cap='(left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
-knitr::include_graphics("images/09_recency_PDP_ALE.PNG")
-knitr::include_graphics("images/09_recency_shap_dependence_plot.PNG")
+knitr::include_graphics("images/09_recency_PDP_ALE.png")
+knitr::include_graphics("images/09_recency_shap_dependence_plot.png")
 ```
 
 ```{r pdp_mens_womens, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
-knitr::include_graphics("images/09_mens_womens_PDP_ALE.PNG")
+knitr::include_graphics("images/09_mens_womens_PDP_ALE.png")
 ```
 
 ```{r pdp_zip, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
-knitr::include_graphics("images/09_zip_PDP_ALE.PNG")
+knitr::include_graphics("images/09_zip_PDP_ALE.png")
 ```
 
 ```{r pdp_newbie, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '50%', fig.align='center'}
-knitr::include_graphics("images/09_newbie_PDP_ALE.PNG")
+knitr::include_graphics("images/09_newbie_PDP_ALE.png")
 ```
 
 ```{r pdp_channel, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
-knitr::include_graphics("images/09_channel_PDP_ALE.PNG")
+knitr::include_graphics("images/09_channel_PDP_ALE.png")
 ```
 
 ## Summary and conclusions 
