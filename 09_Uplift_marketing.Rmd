@@ -246,14 +246,14 @@ You may ask how to show a dependence plot. You have two options. The most common
 
 We generated the Partial Dependence Plot for all features and the SHAP dependence plot based on 1k observations only for *history* and *recency* features. 
 
-```{r pdp_history, echo=FALSE, fig.cap='(left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
+```{r pdp_history, echo=FALSE, fig.cap='History (left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
 knitr::include_graphics("images/09_history_PDP_ALE.png")
 knitr::include_graphics("images/09_history_shap_dependence_plot.png")
 ```
 
 For our model The SHAP Dependence Plot reflects the shape of the Partial Dependence Plot, while also highlighting the impact of *history* on uplift prediction is extremely different for people with the same value of *history*. Many individuals have a recorded *history* of 250 dollars in our dataset, but the impact of that measurement on their uplift varies.
 
-```{r pdp_recency, echo=FALSE, fig.cap='(left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
+```{r pdp_recency, echo=FALSE, fig.cap='Recency (left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
 knitr::include_graphics("images/09_recency_PDP_ALE.png")
 knitr::include_graphics("images/09_recency_shap_dependence_plot.png")
 ```
@@ -266,11 +266,11 @@ knitr::include_graphics("images/09_mens_womens_PDP_ALE.png")
 knitr::include_graphics("images/09_newbie_PDP_ALE.png")
 ```
 
-```{r pdp_zip, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
+```{r pdp_zip, echo=FALSE, fig.cap='Dwelling place', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_zip_PDP_ALE.png")
 ```
 
-```{r pdp_channel, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
+```{r pdp_channel, echo=FALSE, fig.cap='Channel', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_channel_PDP_ALE.png")
 ```
 Since Partial Dependence Profiles are generally parallel to Accumulated Local Effects, we can safely assume that our model does not have (major) interactions. However this does not mean, that we can use some classifier without interactions, because here we model directly the uplift, which is difference between preditions and is itself an interaction.
