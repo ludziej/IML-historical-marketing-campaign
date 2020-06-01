@@ -203,17 +203,17 @@ We decided to evaluate feature importance not from the well-known dataset-level 
 
 
 ```{r sleepingDOGS, echo=FALSE, fig.cap='Variable importance - "sleeping dogs"', out.width = '60%', fig.align='center'}
-knitr::include_graphics("images/09_sleeping_dogs_feature_importance.PNG")
+knitr::include_graphics("images/09_sleeping_dogs_feature_importance_correlations.PNG")
 ```
 
 
 ```{r noIMPACT, echo=FALSE, fig.cap='Variable importance - "no impact"', out.width = '60%', fig.align='center'}
-knitr::include_graphics("images/09_sure_things_lost_cases_feature_importance.PNG")
+knitr::include_graphics("images/09_no_impact_feature_importance_correlations.PNG")
 ```
 
 
 ```{r persuadables, echo=FALSE, fig.cap='Variable importance - "persuadables"', out.width = '60%', fig.align='center'}
-knitr::include_graphics("images/09_persuadables_feature_importance.PNG")
+knitr::include_graphics("images/09_persuadables_feature_importance_correlations.PNG")
 ```
 
 
@@ -223,31 +223,31 @@ You may ask how to show a dependence plot. You have two options. The most common
 We generated the Partial Dependence Plot for all features and the SHAP dependence plot based on 1k observations only for *history* and *recency* features. 
 
 ```{r pdp_history, echo=FALSE, fig.cap='(left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
-knitr::include_graphics("images/history_PDP_ALE.PNG")
-knitr::include_graphics("images/history_shap_dependence_plot.PNG")
+knitr::include_graphics("images/09_history_PDP_ALE.PNG")
+knitr::include_graphics("images/09_history_shap_dependence_plot.PNG")
 ```
 
 For our model The SHAP Dependence Plot reflects the shape of the Partial Dependence Plot, while also highlighting the impact of *history* on uplift prediction is extremely different for people with the same value of *history*. Many individuals have a recorded *history* of 250 dollars in our dataset, but the impact of that measurement on their uplift varies.
 
 ```{r pdp_recency, echo=FALSE, fig.cap='(left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
-knitr::include_graphics("images/recency_PDP_ALE.PNG")
-knitr::include_graphics("images/recency_shap_dependence_plot.PNG")
+knitr::include_graphics("images/09_recency_PDP_ALE.PNG")
+knitr::include_graphics("images/09_recency_shap_dependence_plot.PNG")
 ```
 
 ```{r pdp_mens_womens, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
-knitr::include_graphics("images/mens_womens_PDP_ALE.PNG")
+knitr::include_graphics("images/09_mens_womens_PDP_ALE.PNG")
 ```
 
 ```{r pdp_zip, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
-knitr::include_graphics("images/zip_PDP_ALE.PNG")
+knitr::include_graphics("images/09_zip_PDP_ALE.PNG")
 ```
 
 ```{r pdp_newbie, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '50%', fig.align='center'}
-knitr::include_graphics("images/newbie_PDP_ALE.PNG")
+knitr::include_graphics("images/09_newbie_PDP_ALE.PNG")
 ```
 
 ```{r pdp_channel, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
-knitr::include_graphics("images/channel_PDP_ALE.PNG")
+knitr::include_graphics("images/09_channel_PDP_ALE.PNG")
 ```
 
 ## Summary and conclusions 
