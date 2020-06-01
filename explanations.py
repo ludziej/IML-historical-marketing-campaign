@@ -2,6 +2,7 @@ import shap
 from model import predict_treatment
 import numpy as np
 from model import calc_uplift
+import dalex
 
 
 def shapley_tree(model_predict, obs, dataset, column_names, plot_draw=False):
@@ -31,8 +32,9 @@ def shapley_variable_dependence_plot(model, dataset, column_names, treatment_col
     values, expected = shapley_diff(model, dataset[sample], dataset, column_names, treatment_col, plot_draw=False)
     for pair in pairs:
         shap.dependence_plot(pair, values, dataset[sample])
-        
-def feature_importance_groups(model,X,group,column_names,treatment_col):
+
+
+def feature_importance_groups(model, X, group, column_names, treatment_col):
     uplift = calc_uplift(model, X, treatment_col)
     if group == "sleeping_dogs":
         group = X[uplift<0]
@@ -40,14 +42,18 @@ def feature_importance_groups(model,X,group,column_names,treatment_col):
         group = X[(uplift >= 0) & (uplift <= 0.01)]
     elif group == "persuadables":
         group = X[uplift>0.01]
-    return shapley_importance_plot(r_xgb_model, group, column_names, treatment_col)
+    return shapley_importance_plot(model, group, column_names, treatment_col)
 
-def pdp_plot_uplift(model,X_train,Y_train):
-  exp = dalex.Explainer(model, X_train,Y_train, predict_function = calc_uplift_filled)
-  partial=exp.model_profile(type='partial')
+
+def pdp_plot_uplift(model, X_train, Y_train, treatment_col):
+  exp = dalex.Explainer(model, X_train, Y_train,
+                        predict_function=lambda model, x: calc_uplift(model, x, treatment_col))
+  partial = exp.model_profile(type='partial')
   partial.plot()
 
-def ale_plot_uplift(model,X_train,Y_train):
-  exp = dalex.Explainer(r_xgb_model, X_train,Y_train, predict_function = calc_uplift_filled)
-  partial=exp.model_profile(type='accumulated')
-  partial.plot()
+
+def ale_plot_uplift(model, X_train, Y_train, treatment_col):
+  exp = dalex.Explainer(model, X_train, Y_train,
+                        predict_function=lambda model, x: calc_uplift(model, x, treatment_col))
+  ale = exp.model_profile(type='accumulated')
+  ale.plot()

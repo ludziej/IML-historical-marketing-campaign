@@ -2,11 +2,17 @@ import shap
 shap.initjs()
 from data import X_train, Y_train, X_valid, Y_valid, treatment_col
 from model import train_xgb_model, train_logistic, local_search_xgb, local_search_svm, calc_uplift, check_uplift_diff
+from explanations import pdp_plot_uplift, ale_plot_uplift
 import numpy as np
 
 best_model = local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get_model=True)
 check_uplift_diff(best_model, "best", X_train, Y_train, X_valid, Y_valid, treatment_col)
+
+pdp_plot_uplift(best_model, X_train, Y_train, treatment_col)
+ale_plot_uplift(best_model, X_train, Y_train, treatment_col)
+
 uplift = calc_uplift(best_model, X_valid, treatment_col)
+
 print("{} -> {} (avg={} var={}) (<0) = {} (>0) = {}".format(
     uplift.min(), uplift.max(), np.average(uplift), np.var(uplift), np.sum(uplift < 0), np.sum(uplift > 0)))
 

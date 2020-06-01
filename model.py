@@ -2,13 +2,14 @@ from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression
 from ml_utils import local_search
 import numpy as np
-#import tensorflow as tf
-#import tensorflow.keras as keras
-#from tensorflow.keras.callbacks import EarlyStopping
+import tensorflow as tf
+import tensorflow.keras as keras
+from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
 from pylift.eval import UpliftEval
 from sklearn.svm import SVC
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def calc_uplift(model, x, treatment_col):
@@ -17,6 +18,8 @@ def calc_uplift(model, x, treatment_col):
 
 def predict_treatment(model, treatment_col, c):
     def pred(x):
+        if type(x) is pd.DataFrame:
+            x = x.to_numpy()
         x = x.copy()
         x[:, treatment_col] = c
         return model.predict_proba(x)[:, 1]
@@ -86,32 +89,31 @@ def local_search_xgb(X_train, Y_train, X_valid, Y_valid, treatment_col, just_get
         print("valid score = {}".format(evaluate_uplift(best_model, X_valid, Y_valid, treatment_col)))
     return best_model
 
-#
-#def simple_network(X_train, Y_train, X_valid, Y_valid, channels=30, layers=3, dropout=0.3, epochs=5, verbosity=0):
-#    def create_model():
-#        model = keras.Sequential(
-#            layers * [
-#                keras.layers.Dense(channels, activation='relu'),
-#                tf.keras.layers.BatchNormalization(),
-#                tf.keras.layers.Dropout(dropout),
-#            ] + [
-#                keras.layers.Dense(1, activation='sigmoid')
-#            ]
-#        )
-#        model.compile(optimizer='adam',
-#                      loss='binary_crossentropy',
-#                      metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall(),
-#                               'accuracy', tf.keras.metrics.AUC()])
-#        return model
-#    model = keras.wrappers.scikit_learn.KerasClassifier(build_fn=create_model, verbose=verbosity)
-#    es = EarlyStopping(monitor='val_loss', mode='min', verbose=verbosity, patience=50)
-#    model.fit(X_train, Y_train, validation_split=0.3, verbose=verbosity, epochs=epochs, callbacks=[es])
-#    if verbosity > 0:
-#        train_acc = model.score(X_train, Y_train, verbose=0)
-#        print('\nTrain accuracy:', train_acc)
-#        test_acc = model.score(X_valid, Y_valid, verbose=2)
-#        print('\nTest accuracy:', test_acc)
-#    return model
+
+def simple_network(X_train, Y_train, X_valid, Y_valid, channels=30, layers=3, epochs=5, verbosity=0):
+    def create_model():
+        model = keras.Sequential(
+            layers * [
+                keras.layers.Dense(channels, activation='relu'),
+                tf.keras.layers.BatchNormalization(),
+            ] + [
+                keras.layers.Dense(1, activation='sigmoid')
+            ]
+        )
+        model.compile(optimizer='adam',
+                      loss='binary_crossentropy',
+                      metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall(),
+                               'accuracy', tf.keras.metrics.AUC()])
+        return model
+    model = keras.wrappers.scikit_learn.KerasClassifier(build_fn=create_model, verbose=verbosity)
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=verbosity, patience=50)
+    model.fit(X_train, Y_train, validation_split=0.3, verbose=verbosity, epochs=epochs, callbacks=[es])
+    if verbosity > 0:
+        train_acc = model.score(X_train, Y_train, verbose=0)
+        print('\nTrain accuracy:', train_acc)
+        test_acc = model.score(X_valid, Y_valid, verbose=2)
+        print('\nTest accuracy:', test_acc)
+    return model
 
 
 def train_xgb_model(X_train, Y_train, X_valid, Y_valid, print_score=False):
