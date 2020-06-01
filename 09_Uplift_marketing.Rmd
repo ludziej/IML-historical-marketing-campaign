@@ -123,7 +123,7 @@ First the customers are sorted in descending order based on predicted uplift. La
 ### Model
 
 It can be seen that our model is better than random choice but much worse than the practical/theoretical maximum possible. It is also worse than the case without *"sleeping dogs"*. 
-However we have to remember what this uplift score indicates. Maximum uplift would mean, that we can always persuade anyone to buy, which is obviously an unrealistic scenario, since our "treatment" is only a single advertisement. Comparing to uplift modelling in different domains, i. e. medical usages, our treatment has generally smaller impact on case, therefore dataset itself is more noisy and cumulative gains are smaller. Worth noting also is, that due to small number of features, there are multiple cases in the dataset where two observations with same features have different answears. This kind of noise in data also tremendously impacts the score and requires caution when training models.
+However we have to remember what this uplift score indicates. Maximum uplift would mean, that we can always persuade anyone to buy, which is obviously an unrealistic scenario, since our "treatment" is only a single advertisement. Comparing to uplift modelling in different domains, i. e. medical usages, our treatment has generally smaller impact on case, therefore dataset itself is more noisy and cumulative gains are smaller. Worth noting also is, that due to small number of features, there are multiple cases in the dataset where two observations with same features have different answears. Also, since informational entropy is quite small -> i.e. for any *newbie* there are only 3 (*zip code*) posibilities for observation to have, and we have much more *newbie* observations in the dataset. For non-newbie, we have `2*2=4`(*womens*, *mens*) more possibilities, and two unconstrained dimentions -> recency and history, which is not much more. This kind of noise in data also tremendously impacts the score and requires caution when training models. Also, since uplift itself is an interaction, our model do have to take them into consideration.
 
 Taking into consideration previous observations, model was found using so called local search procedure, what means that we choose some meta-parameters of the model and iteratively, for every meta-parameter approximate derivative (of function from set of metaparemeters to score of trained model) by sampling the local neighbourhood of current value and follow the ascending gradient. Local search stops naturally, when in previus iteration, we did not change any parameter, hence we hit one of the local minima. To be clear, if meta-paremeter is discrete, by approximating local neightbourhood we mean just checking close values. For our score function, we've chosen cross validation on cumulative gains. This kind of procedure should seek for highly robust models.  Therefore, it is worth noticing that our model didn't experience any overfitting as its quality on the train and test sets is similar. The resulting major parameters were: maximum depth 5, high learning rate 0.7 and only 12 estimators.
 
@@ -240,6 +240,7 @@ knitr::include_graphics("images/09_persuadables_feature_importance_correlations.
 ```
 
 
+### Dependence profiles
  
 You may ask how to show a dependence plot. You have two options. The most common method is the Partial Dependence Plot and the different one is the SHAP dependence plot. The Partial Dependence Plot shows the marginal effect one or two features have on the predicted outcome of a machine learning model [@pdp]. It tells whether the relationship between the target and a feature is linear, monotonic or more complex. In order to create a dependence plot, you can also use The SHAP dependence plot, which shows how a feature’s value (x-axis) impacted the prediction (y-axis) of every sample (each dot) in a dataset [@shap_dependence_plot]. This provides richer information than traditional Partial Dependence Plot, so you may see that the SHAP value is a great tool among others, because we have at least two additional information: density, variety of observations.???????
 
@@ -257,21 +258,41 @@ knitr::include_graphics("images/09_recency_PDP_ALE.png")
 knitr::include_graphics("images/09_recency_shap_dependence_plot.png")
 ```
 
-```{r pdp_mens_womens, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
+```{r pdp_mens_womens, echo=FALSE, fig.cap='Gender', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_mens_womens_PDP_ALE.png")
+```
+
+```{r pdp_newbie, echo=FALSE, fig.cap='Newbie', out.width = '50%', fig.align='center'}
+knitr::include_graphics("images/09_newbie_PDP_ALE.png")
 ```
 
 ```{r pdp_zip, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_zip_PDP_ALE.png")
 ```
 
-```{r pdp_newbie, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '50%', fig.align='center'}
-knitr::include_graphics("images/09_newbie_PDP_ALE.png")
-```
-
 ```{r pdp_channel, echo=FALSE, fig.cap='Partial Dependence Plot / Accumulated Local Effects plot', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_channel_PDP_ALE.png")
 ```
+Since Partial Dependence Profiles are generally parallel to Accumulated Local Effects, we can safely assume that our model does not have (major) interactions. However this does not mean, that we can use some classifier without interactions, because here we model directly the uplift, which is difference between preditions and is itself an interaction.
+
+
+#### Sweet-spot
+However, the most important observation here, should be that while at first glance we can only manipulate the Treatment variable, these tools also give us opportunity to *choose also best time to contact the customer*.  Intuitively, recency function should be concave, aiming to find some "sweet-spot" between time when customer "just went out from the shop" and "forgot about this". This plot can be interpretted in this manner, but also with some sinusoidal noise at bigger values, where classifier is littlebit overfitted to remember distinctive cases. Here visibly, this sweet-spot appears to be two months after last purchase.
+
+
+#### Biggest influence
+Biggest influence can be achieved on customers who bought 'womens' products.  Also customers who we know that bought 'mens' products can be easier to convince (especially since this dataset is focused on campaign directed to specific gender). This does not stand in conflict with previos statement due to two reasons: any bought products mean that this person is not a "newbie" (7), and this means we still have more information about this customer to approach him in personalized manner (some products do not have any "gender" specified).
+
+##### Choosing communication type
+Continueing previous reasoning, another thing we can affect is initially removed from the dataset *segment type*, which means if we send an advertisement mail targetted on women or men. Considering how important is *womans* variable, we propose a following policy:
+1. Womens channel alone implies womans segment
+2. Mens channel alone implies mens segment
+3. Both or lack of this information, due to higher impact of *womans* channel, should be treated like *womans segment*.
+
+#### Influence from other factors
+Other plots can be used for better understanding of the customer persuadability. Since only variable considerably reducing estimated uplift is *newbie* we can safely conclude, that marketing campaigns have better impact on your previous customers, which is quite an intuitive conclusion. Analyzing other factors, encoded area of living (*rural*, *suburban*, *urban*) do not have any major influences bigger then statistical error maybe except *rural*, which characterises with slightly better persuadability and suprisingly is only factor that may have some interactions. Reffering to channel, it is best to target customers who bought only by web in past months. It may be connected to the fact that our treatment is concucted via email, however the differences are minor.
+
+
 
 ## Summary and conclusions 
 Using XAI for uplift modeling helps to understand its complex models better. The analysis goes beyond just assessing whether the model is reliable... it can help the executive to understand better the company customers - their behavior without paying for some extra surveys to investigate their attitude towards the company.
@@ -285,9 +306,13 @@ What did you learn?
 Where were the biggest difficulties?
 What else did you recommend?
 
+## Future works
+As a initial feature engineering, we simplified our problem merging *womans segment* and *mens segment* into one, and then after PDP plots proposed a policy for choosing them. However, it is not an only possible apporach. We can try going beyond standard uplift modelling and try to model directly uplift with 2 possible outcomes i.e. create for model *purchase* prediction, and then check if sending *womans* or *mens* email is more profitable, resulting in following equation:
+
+$uplift=max(P(purchase\ |\ womans\_treatment=1) - P(purchase\ |\ womans\_treatment=0), P(purchase\ |\ mens\_treatment=1) - P(purchase\ |\ mens\_treatment=0))$ 
 
 
+However, this leaves us with several open-ended questions i.e.: can we now calcualte shapley values indirectly, using previously presented effecient technique? Surely the max function breaks the addivity of uplift function, but maybe it is possible using some other method? 
 
-zdaje misie tez ze patrzac na sama kubelkowosc danych (tzn pomijajac hisotry ktore teraz sie wybilo bo mamy przetrenowany model zeby miec sleeping dogi xD) to po prostu musi tam byc wiele przypadkow o ktorych wiemy dokladnie to samo i maja rozne odpowiedzi
 
 
