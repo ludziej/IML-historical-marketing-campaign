@@ -201,6 +201,8 @@ Unfortunately, it's impossible to calculate directly Permutation Feature Importa
 
 We decided to evaluate feature importance not from the well-known dataset-level but subset-level. We extracted from the dataset 3 groups: *"sleeping dogs"*, *"persuadables"* and "no impact" (this group is a merge of the groups: *"sure things"* and *"lost causes"*). The division was based on the predicted uplift. *"Sleeping dogs"* have negative uplift, "no impact" have uplift from zero to the defined epsilon and *"persuadables"* have uplift greater than epsilon. We decided to not take into consideration epsilon in the case of *"sleeping dogs"* as we want to be more conservative. The worst thing the company can do is to discourage the customer from buying.
 
+It highlights the correlations in colors. The red color means a feature is positively correlated with the target variable.
+
 
 ```{r sleepingDOGS, echo=FALSE, fig.cap='Variable importance - "sleeping dogs"', out.width = '60%', fig.align='center'}
 knitr::include_graphics("images/09_sleeping_dogs_feature_importance_correlations.PNG")
