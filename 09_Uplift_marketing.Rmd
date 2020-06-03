@@ -8,7 +8,10 @@
 
 * uplift models thanks to its additivity give wide range of possiblities while using XAI  
 * SHAP values can be used to explain model in different aspects - they can be used to estimate Variable importance and Partial Dependence Plots  
-* [tutaj trzeba dopisać to co stricte dowiedzieliśmy się z uplift]  
+
+* In the case of analysed dataset marketing campaign should be send two months after last purchase to be the most effective.
+
+* XAI analysis can help in creating personalized marketing campaigns.
 
 ## Introduction 
 
@@ -150,7 +153,7 @@ We decided to investigate model interpretability from instance-level and dataset
 
 ### Instance-level
 
-In order to explain model output for particular customer we employed SHAP values [@feature_importance_shap]. 
+In order to explain model output for particular customer we employed SHAP (SHapley Additive exPlanations) values [@feature_importance_shap]. 
 
 Before we move to the investigation of SHAP values let's get to know customers that got the highest and the lowest uplift. In this section we will analyze the reliability of predictions for these particular instances. In the table \@ref(tab:personalTABLE) there is all the information provided to the system about the customers.
 
@@ -244,62 +247,91 @@ Regardless of the customer groups always *history* and *womens* are among three 
 
 #### Dependence profiles
  
-Another tool to investigate model are the dependence plots. There are two options. The most common method is the Partial Dependence Plot and the another one is the SHAP dependence plot. The Partial Dependence Plot shows the marginal effect one or two features have on the predicted outcome of a machine learning model [@pdp]. It tells whether the relationship between the target and a feature is linear, monotonic or more complex. In the SHAP dependence plot we can show how a feature’s value (x-axis) impacted the prediction (y-axis) of every sample (each dot) in a dataset [@shap_dependence_plot]. This provides richer information than the traditional Partial Dependence Plot, because we have at least two additional information: density, variety of observations.???????
+Another tool to investigate model are the dependence plots. There are two options. The most common method is the Partial Dependence Plot (PDP)/ Accumulated Local Effects (ALE). and the another one is the SHAP dependence plot. The Partial Dependence Plot shows the marginal effect one or two features have on the predicted outcome of a machine learning model [@pdp]. It tells whether the relationship between the target and a feature is linear, monotonic or more complex. In the SHAP dependence plot we can show how a feature’s value (x-axis) impacted the prediction (y-axis) of every sample (each dot) in a dataset [@shap_dependence_plot]. This provides richer information than the traditional Partial Dependence Plot, because we have at least two additional information: density, variance of observations.
 
-We generated the Partial Dependence Plot for all features and the SHAP dependence plot based on 1k observations only for *history* and *recency* features. 
+Partial dependence plots reflect the expected output of the model if only one feature value is changed and rest stays the same. In contrast, the SHAP value for a feature represents how much that feature impacted the prediction for single sample, accounting for interaction effects. So while in general you would expect to see similar shapes in a SHAP dependence plot and a partial dependence plot they will be different if your model has multi-variable interaction effects (like AND or OR). A partial dependence plot has no vertical dispersion and so no indication of how much interaction effects are driving the model’s predictions.
 
-```{r pdp_history, echo=FALSE, fig.cap='History (left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
+We generated the Partial Dependence Plot for all features and the SHAP dependence plot based on 1000 observations only for *history* and *recency* features. 
+
+```{r pdp_history, echo=FALSE, fig.cap='History (left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1000 observations', out.width = '50%', fig.align='default',fig.show="hold"}
 knitr::include_graphics("images/09_history_PDP_ALE.png")
 knitr::include_graphics("images/09_history_shap_dependence_plot.png")
 ```
 
-For our model The SHAP Dependence Plot reflects the shape of the Partial Dependence Plot, while also highlighting the impact of *history* on uplift prediction is extremely different for people with the same value of *history*. Many individuals have a recorded *history* of 250 dollars in our dataset, but the impact of that measurement on their uplift varies.
+For our model the SHAP Dependence Plot reflects the shape of the Partial Dependence Plot. Contribution of *history* to the final uplift prediction differs among people with the same value of *history*. It can be seen that there is a considerable peak on the chart for *history* value about 230 USD. The following coclusions can be drawn:
+1. people that spend the same amount of money have different SHAP values
+2. it is observed that people with the very high SHAP value and who spend about 230 USD had at the same time small recency meaning they bought a product recently.
+Many individuals have a recorded *history* of 230 dollars in our dataset, but the impact of that measurement on their uplift varies.
+???????????
 
 ```{r pdp_recency, echo=FALSE, fig.cap='Recency (left) Partial Dependence Plot / Accumulated Local Effects plot, (right) The SHAP Dependence Plot based on 1k observations', out.width = '50%', fig.align='default',fig.show="hold"}
 knitr::include_graphics("images/09_recency_PDP_ALE.png")
 knitr::include_graphics("images/09_recency_shap_dependence_plot.png")
 ```
 
+Due to the fact that *recency* can have only one of 12 values, on the SHAP Dependence Plot we can see only 12 "clusters". Dispersion within the "clusters" shows how much the observations in our dataset differ.
+
 ```{r pdp_mens_womens, echo=FALSE, fig.cap='Gender', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_mens_womens_PDP_ALE.png")
 ```
+
+It is suprising that the disproportion between the results shown in Figure \@ref(fig:pdp_mens_womens) is so significant. In the PDP of *mens* feature the lines are almost flat meaning that regardless of the fact whether someone bought or not a product from mens collection the uplift prediction stays the same.
 
 ```{r pdp_newbie, echo=FALSE, fig.cap='Newbie', out.width = '50%', fig.align='center'}
 knitr::include_graphics("images/09_newbie_PDP_ALE.png")
 ```
 
+It can be seen that if a person is a *newbie* it is harder to encourage him/her to buy a product through marketing campaign. 
+
 ```{r pdp_zip, echo=FALSE, fig.cap='Dwelling place', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_zip_PDP_ALE.png")
 ```
 
+It can be seen that PDP of *zip_code_Suburban* and *zip_code_Urban* look very similar. They both have decreasing trend. Whereas PDP of *zip_code_Rural* has increasing trend. In this case it can be seen that ALE nd PDP crosses as they aren't parralel, it means there is slight interaction in model.
+
 ```{r pdp_channel, echo=FALSE, fig.cap='Channel', out.width = '100%', fig.align='center'}
 knitr::include_graphics("images/09_channel_PDP_ALE.png")
 ```
+
+The biggest gain in terms of uplift can be seen in case when the person uses Web channel. The PDP of *Phone_channel* is flat.
+
+## Conclusions
+
 Since Partial Dependence Profiles are generally parallel to Accumulated Local Effects, we can safely assume that our model does not have (major) interactions. However this does not mean, that we can use some classifier without interactions, because here we model directly the uplift, which is difference between preditions and is itself an interaction.
 
 
 #### Sweet-spot
-However, the most important observation here, should be that while at first glance we can only manipulate the Treatment variable, these tools also give us opportunity to *choose also best time to contact the customer*.  Intuitively, recency function should be concave, aiming to find some "sweet-spot" between time when customer "just went out from the shop" and "forgot about this". This plot can be interpretted in this manner, but also with some sinusoidal noise at bigger values, where classifier is littlebit overfitted to remember distinctive cases. Here visibly, this sweet-spot appears to be two months after last purchase.
+The most important observation here, should be that while at first glance we can only manipulate the *treatment* variable, dependence profiles also give us opportunity to **choose best time to contact the customer**. Intuitively, *recency* function should be concave, aiming to find some "sweet-spot" between time when customer "just went out from the shop" and "forgot about this". The Figure \@ref(fig:pdp_recency) is indeed concave but only for *recency* values between 1 and 4. For larger *recency* there is sinusoidal noise observed. This fluctuations can be interpreted as small overfitting. The key message is that the sweet-spot appears to be two months after last purchase.
 
 
 #### Biggest influence
-Biggest influence can be achieved on customers who bought 'womens' products.  Also customers who we know that bought 'mens' products can be easier to convince (especially since this dataset is focused on campaign directed to specific gender). This does not stand in conflict with previos statement due to two reasons: any bought products mean that this person is not a "newbie" (7), and this means we still have more information about this customer to approach him in personalized manner (some products do not have any "gender" specified).
+Based on Figure \@ref(fig:pdp_mens_womens) the biggest influence can be achieved on customers who bought womens products than the ones who bought products from mens collections. Initially we removed from the dataset information about treatment type (Woman's/Man's e-mail). But based on Variable Importance analysis (Figures: \@ref(fig:sleepingDOGS), \@ref(fig:noIMPACT), \@ref(fig:persuadables)) we can reason about the type that maximizes uplift for particular person. Considering how important is *womens* variable, we propose a following policy: regardless of the fact whether someone buys from mens or womens collections we should send e-mails dedicated to womens.
 
-##### Choosing communication type
-Continueing previous reasoning, another thing we can affect is initially removed from the dataset *segment type*, which means if we send an advertisement mail targetted on women or men. Considering how important is *womans* variable, we propose a following policy:
-1. Womens channel alone implies womans segment
-2. Mens channel alone implies mens segment
-3. Both or lack of this information, due to higher impact of *womans* channel, should be treated like *womans segment*.
 
 #### Influence from other factors
-Other plots can be used for better understanding of the customer persuadability. Since only variable considerably reducing estimated uplift is *newbie* we can safely conclude, that marketing campaigns have better impact on your previous customers, which is quite an intuitive conclusion. Analyzing other factors, encoded area of living (*rural*, *suburban*, *urban*) do not have any major influences bigger then statistical error maybe except *rural*, which characterises with slightly better persuadability and suprisingly is only factor that may have some interactions. Reffering to channel, it is best to target customers who bought only by web in past months. It may be connected to the fact that our treatment is concucted via email, however the differences are minor.
-
+Other plots can be used for better understanding of the customer persuadability. Since the only variable considerably reducing estimated uplift is newbie we can safely conclude, that marketing campaigns have better impact on regular customers, which is quite an intuitive conclusion. Analysing other factors, one-hot-encoded area of living (*zip_code_Rural*, *zip_code_Suburban*, *zip_code_Urban*) do not have any major influences bigger than statistical error maybe except *rural*. Customers living on countryside are more likely to be persuaded. Suprisingly it is the only factor that may have some interactions. Referring to purchase channel, it is best to target customers who bought only by web in past months. It may be connected to the fact that our treatment is conducted via e-mail, however the differences are minor. We suspect that in some cases the following situation can happen. Someone buys via phone as he doesn't use internet offen. In such cases e-mail campaigns will not be effective. 
 
 
 ## Summary and conclusions 
-Using XAI for uplift modeling helps to understand its complex models better. The analysis goes beyond just assessing whether the model is reliable... it can help the executive to understand better the company customers - their behavior without paying for some extra surveys to investigate their attitude towards the company.
+Using XAI for uplift modeling helps to understand its complex models better. The analysis goes beyond just assessing whether the model is reliable. 
 
-A vital part of our work was adjusting XAI techniques for the particularities of uplift modeling. We found out that thanks to its additivity SHAP values are well suited for uplift modeling - we showed two methods of using it. We identified limitations of well-known Permutation Feature Importance in terms of explaining uplift modeling. It is caused by the fact that unlike in other supervised models here we do not have exactly labels. Therefore we used the generalization of SHAP values that converge to Permutation Feature Importance. We employed the analysis for the three groups of customers based on the corresponding uplift.
+### Individual perspective 
+
+In case of our task individual perpective doesn't seem to be vital. Unlikely that customer will write an e-mail to the company asking whether he didn't receive an e-mail with marketing campaign. Even if he does, he wouldn't change his dwelling area only in order to get the e-mail. The only thing that the customer can rather easy change his value of *recency* or *history* variable. 
+
+### Data scientist perspective 
+
+In the data scientist perspective the most important thing to check is whether the model is overfitted. The tool that can help in verifying model sensitivity is the Partial Dependence Plot. In case of our model it can be seen that the model is slightly overfitted as there is a peak on PDP of *history*.
+
+### Executive perspective 
+
+XAI techniques can help the executives to understand better the company customers - their behavior without paying for some extra surveys to investigate their attitude towards the company. Key findings:
+
+* the campaign e-mail should be send two months after last purchase in order to be more effective. 
+* the most important variables in the model seem to be resonable, e.g. *history* and *recency* (Figures: \@ref(fig:sleepingDOGS), \@ref(fig:noIMPACT), \@ref(fig:persuadables)). The only suprising thing is high importance of *zip_code_Rural* feature. 
+* In the case of bigger number of treatment variants it would be possible to create personalized marketing campaign.
+
+A vital part of our work was adjusting XAI techniques for the particularities of uplift modeling. We found out that thanks to its additivity SHAP values are well suited for uplift modeling - we showed two methods of using it. We identified limitations of well-known Permutation Feature Importance in terms of explaining uplift modeling. It is caused by the fact that unlike in other supervised models here we do not have exactly labels. Therefore we used the generalization of SHAP values that converge to Permutation Feature Importance. Also we analised the SHAP Dependence Plots as an alternative to PDP. We employed the analysis for the three groups of customers based on the corresponding uplift.
 
 .........................................
 
@@ -309,12 +341,15 @@ Where were the biggest difficulties?
 What else did you recommend?
 
 ## Future works
-As a initial feature engineering, we simplified our problem merging *womans segment* and *mens segment* into one, and then after PDP plots proposed a policy for choosing them. However, it is not an only possible apporach. We can try going beyond standard uplift modelling and try to model directly uplift with 2 possible outcomes i.e. create for model *purchase* prediction, and then check if sending *womans* or *mens* email is more profitable, resulting in following equation:
+During initial feature engineering, we simplified our problem by merging *womens treatment* and *mens treatment* into one. By analysing PDP we were able to propose a policy for choosing the optimal treatment type. However, it is not the only possible approach. We can try going beyond standard uplift modeling and model directly uplift with 2 possible outcomes i.e. create *purchase* prediction, and then check if sending *womens* or *mens* email is more profitable, resulting in following equation:
 
-$uplift=max(P(purchase\ |\ womans\_treatment=1) - P(purchase\ |\ womans\_treatment=0), P(purchase\ |\ mens\_treatment=1) - P(purchase\ |\ mens\_treatment=0))$ 
+$uplift=max(P(purchase\ |\ w\_T=1) - P(purchase\ |\ w\_T=0,m\_T=0), P(purchase\ |\ m\_T=1) - P(purchase\ |\ w\_T=0,m\_T=0)),$
+
+$w_T$ is womens treatment and $m_T$ is mens treatment.
+
+However, this leaves us with several open-ended questions i.e.: can we now calculate SHAP values indirectly, using previously presented effecient technique (based on additivity)? Surely the max function breaks the additivity of uplift function, but maybe it is possible using some other method? 
 
 
-However, this leaves us with several open-ended questions i.e.: can we now calcualte SHAP values indirectly, using previously presented effecient technique? Surely the max function breaks the addivity of uplift function, but maybe it is possible using some other method? 
 
 
 
